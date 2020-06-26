@@ -8,4 +8,14 @@ before_install:
   - docker build -t maurodocker1/docker-react -f Dockerfile.dev .
 
 script:
-  - docker run maurodocker1/docker-react npm run test -- -- coverage
+  - docker run -e CI=true maurodocker1/docker-react npm run test
+
+deploy:
+    provider: elasticbeanstalk
+    region: "us-west-2"
+    app: "docker"
+    env: "Docker-env"
+    bucket_name: ""
+    bucket_path: "docker"
+    on:
+        branch: master
