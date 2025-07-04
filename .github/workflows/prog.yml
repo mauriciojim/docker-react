@@ -1,0 +1,48 @@
+name: UpdateP
+on:
+  issues:
+    types: [closed, reopened]
+  pull_request:
+    types: [closed, reopened]
+
+jobs:
+  update-progress:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Update milestone progress
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const projectNumber = 1; // Tu número de proyecto
+          const milestone = context.payload.issue?.milestone || context.payload.pull_request?.milestone;
+          
+          if (!milestone) {
+            console.log('No milestone found');
+            return;
+          }
+          
+          // Obtener issues del milestone
+          const { data: issues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            milestone: milestone.number,
+            state: 'all'
+          });
+          
+          const totalIssues = issues.length;
+          const closedIssues = issues.filter(issue => issue.state === 'closed').length;
+          const progress = totalIssues > 0 ? Math.round((closedIssues / totalIssues) * 100) : 0;
+          
+          console.log(`Milestone: ${milestone.title}`);
+          console.log(`Progress: ${progress}% (${closedIssues}/${totalIssues})`);
+          
+          // Actualizar issues en el proyecto con el progreso calculado
+          for (const issue of issues) {
+            try {
+              // Aquí necesitarías usar la API de Projects v2 para actualizar el campo
+              console.log(`Issue #${issue.number}: ${issue.title}`);
+            } catch (error) {
+              console.error(`Error updating issue ${issue.number}:`, error);
+            }
+          }
