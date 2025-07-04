@@ -1,0 +1,29 @@
+name: Update Milestone Progress
+on:
+  issues:
+    types: [closed, reopened]
+
+jobs:
+  update-progress:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Update milestone progress
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const milestone = context.payload.issue?.milestone;
+          if (milestone) {
+            // Calcular progreso automáticamente
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              milestone: milestone.number,
+              state: 'all'
+            });
+            
+            const total = issues.length;
+            const closed = issues.filter(i => i.state === 'closed').length;
+            const progress = Math.round((closed / total) * 100);
+            
+            console.log(`Milestone ${milestone.title}: ${progress}% complete`);
+          }
