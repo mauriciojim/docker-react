@@ -1,0 +1,60 @@
+name: Milestone Report by Milestone
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner:
+        description: 'GitHub Owner'
+        required: true
+        default: 'GH-Mexico-Universidad'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate Report with GitHub CLI
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OWNER: ${{ github.event.inputs.owner }}
+      run: |
+        echo "# Milestone Report for $OWNER" > report.md
+        echo "Generated on: $(date)" >> report.md
+        echo "" >> report.md
+        
+        # Crear un archivo temporal para almacenar datos de milestones
+        temp_file=$(mktemp)
+        
+        # Obtener todos los repositorios y sus milestones
+        gh repo list $OWNER --limit 100 --json name | jq -r '.[].name' | while read repo; do
+          echo "Processing repository: $repo" >&2
+          gh api repos/$OWNER/$repo/milestones --jq --arg repo "$repo" '.[] | "\(.title)|\(.state)|\(.closed_issues)|\(.open_issues + .closed_issues)|\($repo)"' >> $temp_file 2>/dev/null || true
+        done
+        
+        # Procesar los datos agrupados por milestone
+        if [ -s $temp_file ]; then
+          # Obtener lista única de milestones
+          cut -d'|' -f1 $temp_file | sort -u | while read milestone_name; do
+            if [ -n "$milestone_name" ]; then
+              echo "## Milestone: $milestone_name" >> report.md
+              echo "" >> report.md
+              
+              # Obtener todos los repositorios que tienen este milestone
+              grep "^$milestone_name|" $temp_file | while IFS='|' read milestone state closed_issues total_issues repo; do
+                completed_percentage=$(( total_issues > 0 ? (closed_issues * 100) / total_issues : 0 ))
+                echo "- **$repo** ($state) - $closed_issues/$total_issues issues completed ($completed_percentage%)" >> report.md
+              done
+              echo "" >> report.md
+            fi
+          done
+        else
+          echo "No milestones found across all repositories." >> report.md
+        fi
+        
+        # Limpiar archivo temporal
+        rm -f $temp_file
+    
+    - name: Upload Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: milestone-report-by-milestone
+        path: report.md
