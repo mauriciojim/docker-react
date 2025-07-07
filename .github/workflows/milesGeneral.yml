@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      metadata: read
       issues: read
       pull-requests: read
+      repository-projects: read
     steps:
     - name: Generate Report with GitHub CLI
       env:
