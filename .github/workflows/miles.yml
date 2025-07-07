@@ -1,0 +1,35 @@
+name: Simple Milestone Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner:
+        description: 'GitHub Owner'
+        required: true
+        default: 'GH-Mexico-Universidad'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate Report with GitHub CLI
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OWNER: ${{ github.event.inputs.owner }}
+      run: |
+        echo "# Milestone Report for $OWNER" > report.md
+        echo "Generated on: $(date)" >> report.md
+        echo "" >> report.md
+        
+        # Obtener repositorios y sus milestones
+        gh repo list $OWNER --limit 100 --json name | jq -r '.[].name' | while read repo; do
+          echo "## Repository: $repo" >> report.md
+          gh api repos/$OWNER/$repo/milestones --jq '.[] | "- **\(.title)** (\(.state)) - \(.closed_issues)/\(.open_issues + .closed_issues) issues completed"' >> report.md || echo "No milestones found" >> report.md
+          echo "" >> report.md
+        done
+    
+    - name: Upload Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: milestone-report-simple
+        path: report.md
