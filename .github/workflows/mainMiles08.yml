@@ -1,0 +1,122 @@
+name: Milestone Report by Milestone (Fixed)
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner:
+        description: 'GitHub Owner'
+        required: true
+        default: 'GH-Mexico-Universidad'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      repository-projects: read
+    steps:
+    - name: Generate Report with GitHub CLI
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OWNER: ${{ github.event.inputs.owner }}
+      run: |
+        echo "# Milestone Report for $OWNER" > report.md
+        echo "Generated on: $(date)" >> report.md
+        echo "" >> report.md
+        
+        # Crear un archivo temporal para almacenar datos de milestones
+        temp_file=$(mktemp)
+        
+        # Verificar autenticación primero
+        if ! gh auth status >/dev/null 2>&1; then
+          echo "❌ GitHub authentication failed" >> report.md
+          exit 1
+        fi
+        
+        # Obtener todos los repositorios públicos
+        echo "Fetching repositories for $OWNER..."
+        repos=$(gh repo list $OWNER --limit 100 --json name,visibility | jq -r '.[] | select(.visibility == "public") | .name')
+        
+        if [ -z "$repos" ]; then
+          echo "No public repositories found for $OWNER" >> report.md
+          # Intentar obtener repositorios sin filtro de visibilidad
+          repos=$(gh repo list $OWNER --limit 100 --json name | jq -r '.[].name' 2>/dev/null || echo "")
+        fi
+        
+        repo_count=0
+        milestone_count=0
+        
+        # Procesar cada repositorio
+        for repo in $repos; do
+          if [ -n "$repo" ]; then
+            repo_count=$((repo_count + 1))
+            echo "Processing repository $repo_count: $repo"
+            
+            # Obtener milestones del repositorio con información de proyecto
+            milestone_data=$(gh api repos/$OWNER/$repo/milestones 2>/dev/null | jq -r --arg repo "$repo" '.[] | 
+              if .description and (.description | test("Project:|Proyecto:"; "i")) then
+                (.description | capture("(?:Project|Proyecto):\\s*(?<project>[^\\n\\r]+)"; "i") | .project // "N/A")
+              else
+                "N/A"
+              end as $project |
+              "\(.title)|\(.state)|\(.closed_issues)|\(.open_issues + .closed_issues)|\($repo)|\($project)"' 2>/dev/null)
+            
+            if [ -n "$milestone_data" ]; then
+              echo "$milestone_data" >> $temp_file
+              current_milestones=$(echo "$milestone_data" | wc -l)
+              milestone_count=$((milestone_count + current_milestones))
+              echo "  Found $current_milestones milestones"
+            fi
+          fi
+        done
+        
+        echo "Processed $repo_count repositories, found $milestone_count total milestones" >> report.md
+        echo "" >> report.md
+        
+        # Procesar los datos agrupados por milestone
+        if [ -s $temp_file ]; then
+          echo "## Milestones by Name" >> report.md
+          echo "" >> report.md
+          
+          # Obtener lista única de milestones
+          cut -d'|' -f1 $temp_file | sort -u | while read milestone_name; do
+            if [ -n "$milestone_name" ]; then
+              echo "### $milestone_name" >> report.md
+              echo "" >> report.md
+              echo "| Repository | Project | State | Completed | Total | Progress |" >> report.md
+              echo "|------------|---------|-------|-----------|-------|----------|" >> report.md
+              
+              # Obtener todos los repositorios que tienen este milestone
+              grep "^$milestone_name|" $temp_file | while IFS='|' read milestone state closed_issues total_issues repo project; do
+                if [ "$total_issues" -gt 0 ]; then
+                  completed_percentage=$(( (closed_issues * 100) / total_issues ))
+                else
+                  completed_percentage=0
+                fi
+                echo "| $repo | $project | $state | $closed_issues | $total_issues | $completed_percentage% |" >> report.md
+              done
+              echo "" >> report.md
+            fi
+          done
+        else
+          echo "## No Milestones Found" >> report.md
+          echo "" >> report.md
+          echo "No milestones were found across all accessible repositories." >> report.md
+          echo "" >> report.md
+          echo "**Troubleshooting steps:**" >> report.md
+          echo "1. Verify that the organization/user '$OWNER' exists" >> report.md
+          echo "2. Check that repositories have milestones configured" >> report.md
+          echo "3. Ensure the workflow has proper permissions" >> report.md
+          echo "4. For private repositories, verify token permissions" >> report.md
+        fi
+        
+        # Limpiar archivo temporal
+        rm -f $temp_file
+    
+    - name: Upload Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: milestone-report-fixed
+        path: report.md
