@@ -1,0 +1,270 @@
+name: Simple Milestone Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      organization:
+        description: 'Organization/User to analyze'
+        required: true
+        default: 'mauriciojim'
+
+jobs:
+  milestone-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Generate Milestone Report
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const targetOrg = '${{ github.event.inputs.organization || 'mauriciojim' }}';
+          
+          console.log(`🚀 Generating milestone report for ${targetOrg}`);
+          
+          // Get all repositories for the user/organization
+          let repositories = [];
+          try {
+            const user = await github.rest.users.getByUsername({ username: targetOrg });
+            const repos = await github.rest.repos.listForUser({
+              username: targetOrg,
+              type: 'public',
+              per_page: 100
+            });
+            repositories = repos.data;
+          } catch (error) {
+            console.log(`Could not fetch user repos, trying organization...`);
+            try {
+              const repos = await github.rest.repos.listForOrg({
+                org: targetOrg,
+                type: 'public',
+                per_page: 100
+              });
+              repositories = repos.data;
+            } catch (orgError) {
+              console.log(`Error fetching repositories: ${orgError.message}`);
+              return;
+            }
+          }
+          
+          console.log(`📊 Found ${repositories.length} repositories`);
+          
+          // Collect milestone data
+          let allMilestones = [];
+          let totalMilestones = 0;
+          let completedMilestones = 0;
+          let overdueMilestones = 0;
+          
+          for (const repo of repositories) {
+            try {
+              console.log(`Processing ${repo.name}...`);
+              
+              // Get milestones for this repository
+              const milestones = await github.rest.issues.listMilestones({
+                owner: repo.owner.login,
+                repo: repo.name,
+                state: 'all'
+              });
+              
+              for (const milestone of milestones.data) {
+                totalMilestones++;
+                
+                const totalIssues = milestone.open_issues + milestone.closed_issues;
+                const progress = totalIssues > 0 ? Math.round((milestone.closed_issues / totalIssues) * 100) : 0;
+                
+                // Check if milestone is overdue
+                const isOverdue = milestone.due_on && 
+                  milestone.state === 'open' && 
+                  new Date(milestone.due_on) < new Date();
+                
+                if (milestone.state === 'closed') {
+                  completedMilestones++;
+                }
+                if (isOverdue) {
+                  overdueMilestones++;
+                }
+                
+                allMilestones.push({
+                  repository: repo.name,
+                  title: milestone.title,
+                  state: milestone.state,
+                  openIssues: milestone.open_issues,
+                  closedIssues: milestone.closed_issues,
+                  totalIssues: totalIssues,
+                  progress: progress,
+                  dueDate: milestone.due_on,
+                  isOverdue: isOverdue,
+                  url: milestone.html_url,
+                  description: milestone.description
+                });
+              }
+            } catch (error) {
+              console.log(`Error processing ${repo.name}: ${error.message}`);
+            }
+          }
+          
+          // Generate report
+          const now = new Date();
+          let report = `# 📊 Milestone Progress Report\n\n`;
+          report += `**Organization/User:** ${targetOrg}\n`;
+          report += `**Generated:** ${now.toISOString().split('T')[0]} ${now.toTimeString().split(' ')[0]} UTC\n\n`;
+          
+          // Summary
+          report += `## 📈 Summary\n\n`;
+          report += `- **Total Repositories:** ${repositories.length}\n`;
+          report += `- **Total Milestones:** ${totalMilestones}\n`;
+          report += `- **Completed Milestones:** ${completedMilestones}\n`;
+          report += `- **Overdue Milestones:** ${overdueMilestones}\n\n`;
+          
+          if (allMilestones.length === 0) {
+            report += `## ℹ️ No Milestones Found\n\n`;
+            report += `No milestones were found in the analyzed repositories.\n`;
+          } else {
+            // Group milestones by name
+            const milestoneGroups = {};
+            allMilestones.forEach(milestone => {
+              if (!milestoneGroups[milestone.title]) {
+                milestoneGroups[milestone.title] = [];
+              }
+              milestoneGroups[milestone.title].push(milestone);
+            });
+            
+            // Milestones by name
+            report += `## 🎯 Milestones Progress\n\n`;
+            Object.keys(milestoneGroups).sort().forEach(milestoneName => {
+              const milestones = milestoneGroups[milestoneName];
+              
+              // Calculate overall progress for this milestone across repos
+              const totalIssues = milestones.reduce((sum, m) => sum + m.totalIssues, 0);
+              const completedIssues = milestones.reduce((sum, m) => sum + m.closedIssues, 0);
+              const overallProgress = totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
+              
+              report += `### ${milestoneName}\n\n`;
+              report += `**Overall Progress:** ${overallProgress}% (${completedIssues}/${totalIssues} issues)\n\n`;
+              
+              // Table
+              report += `| Repository | State | Progress | Due Date | Status |\n`;
+              report += `|------------|-------|----------|----------|--------|\n`;
+              
+              milestones.forEach(milestone => {
+                const statusEmoji = milestone.isOverdue ? '🔴' : 
+                                  milestone.state === 'open' ? '🟡' : '🟢';
+                const dueDate = milestone.dueDate ? 
+                  milestone.dueDate.split('T')[0] : 'No due date';
+                
+                report += `| [${milestone.repository}](${milestone.url}) | `;
+                report += `${milestone.state} | `;
+                report += `${milestone.progress}% (${milestone.closedIssues}/${milestone.totalIssues}) | `;
+                report += `${dueDate} | `;
+                report += `${statusEmoji} |\n`;
+              });
+              
+              report += `\n`;
+            });
+            
+            // Repository details
+            report += `## 📚 Repository Details\n\n`;
+            const reposWithMilestones = [...new Set(allMilestones.map(m => m.repository))].sort();
+            
+            reposWithMilestones.forEach(repoName => {
+              const repoMilestones = allMilestones.filter(m => m.repository === repoName);
+              
+              report += `### ${repoName}\n\n`;
+              
+              if (repoMilestones.length > 0) {
+                report += `| Milestone | State | Progress | Due Date |\n`;
+                report += `|-----------|-------|----------|----------|\n`;
+                
+                repoMilestones.forEach(milestone => {
+                  const dueDate = milestone.dueDate ? 
+                    milestone.dueDate.split('T')[0] : 'No due date';
+                  
+                  report += `| [${milestone.title}](${milestone.url}) | `;
+                  report += `${milestone.state} | `;
+                  report += `${milestone.progress}% | `;
+                  report += `${dueDate} |\n`;
+                });
+              } else {
+                report += `*No milestones found*\n`;
+              }
+              
+              report += `\n`;
+            });
+          }
+          
+          // Create reports directory and save file
+          const reportsDir = 'reports';
+          if (!fs.existsSync(reportsDir)) {
+            fs.mkdirSync(reportsDir, { recursive: true });
+          }
+          
+          fs.writeFileSync(`${reportsDir}/milestone-report.md`, report);
+          
+          // Create summary for issue
+          let summary = `## 📊 Weekly Milestone Summary\n\n`;
+          summary += `**Key Metrics:**\n`;
+          summary += `- Repositories analyzed: ${repositories.length}\n`;
+          summary += `- Total milestones: ${totalMilestones}\n`;
+          summary += `- Completed: ${completedMilestones}\n`;
+          summary += `- Overdue: ${overdueMilestones} ${overdueMilestones > 0 ? '⚠️' : '✅'}\n\n`;
+          
+          if (overdueMilestones > 0) {
+            summary += `### ⚠️ Attention Required\n`;
+            summary += `There are ${overdueMilestones} overdue milestone(s) that need attention.\n\n`;
+          }
+          
+          summary += `📋 [View Full Report](./reports/milestone-report.md)\n`;
+          summary += `🔄 Report generated automatically on ${now.toISOString().split('T')[0]}`;
+          
+          fs.writeFileSync(`${reportsDir}/milestone-summary.md`, summary);
+          
+          console.log(`✅ Report generated successfully!`);
+          console.log(`📊 Analyzed ${repositories.length} repositories`);
+          console.log(`🎯 Found ${totalMilestones} milestones`);
+          
+          if (overdueMilestones > 0) {
+            console.log(`⚠️ ${overdueMilestones} milestone(s) are overdue!`);
+          }
+          
+          // Store summary for issue creation
+          core.setOutput('summary', summary);
+          core.setOutput('overdue_count', overdueMilestones);
+          core.setOutput('total_milestones', totalMilestones);
+          
+    - name: Commit and push report
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add reports/
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "📊 Update milestone report - $(date '+%Y-%m-%d %H:%M')"
+          git push
+        fi
+        
+    - name: Create Weekly Summary Issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const summaryPath = 'reports/milestone-summary.md';
+          
+          if (fs.existsSync(summaryPath)) {
+            const summary = fs.readFileSync(summaryPath, 'utf8');
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 Weekly Milestone Report - ${new Date().toISOString().split('T')[0]}`,
+              body: summary,
+              labels: ['report', 'milestone', 'automated']
+            });
+          }
