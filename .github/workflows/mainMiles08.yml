@@ -54,20 +54,40 @@ jobs:
             repo_count=$((repo_count + 1))
             echo "Processing repository $repo_count: $repo"
             
-            # Obtener milestones del repositorio con información de proyecto
-            milestone_data=$(gh api repos/$OWNER/$repo/milestones 2>/dev/null | jq -r --arg repo "$repo" '.[] | 
-              if .description and (.description | test("Project:|Proyecto:"; "i")) then
-                (.description | capture("(?:Project|Proyecto):\\s*(?<project>[^\\n\\r]+)"; "i") | .project // "N/A")
-              else
-                "N/A"
-              end as $project |
-              "\(.title)|\(.state)|\(.closed_issues)|\(.open_issues + .closed_issues)|\($repo)|\($project)"' 2>/dev/null)
+            # Verificar si el repositorio existe y es accesible
+            if ! gh api repos/$OWNER/$repo >/dev/null 2>&1; then
+              echo "  ⚠️  Repository $repo is not accessible, skipping..."
+              continue
+            fi
             
-            if [ -n "$milestone_data" ]; then
-              echo "$milestone_data" >> $temp_file
-              current_milestones=$(echo "$milestone_data" | wc -l)
-              milestone_count=$((milestone_count + current_milestones))
-              echo "  Found $current_milestones milestones"
+            # Obtener milestones del repositorio con información de proyecto
+            milestone_response=$(gh api repos/$OWNER/$repo/milestones 2>/dev/null)
+            
+            if [ $? -eq 0 ] && [ -n "$milestone_response" ]; then
+              milestone_data=$(echo "$milestone_response" | jq -r --arg repo "$repo" '
+                if type == "array" then
+                  .[] | 
+                  (if .description and (.description | test("Project:|Proyecto:"; "i")) then
+                    (.description | capture("(?:Project|Proyecto):\\s*(?<project>[^\\n\\r]+)"; "i") | .project // "N/A")
+                  else
+                    "N/A"
+                  end) as $project |
+                  "\(.title)|\(.state)|\(.closed_issues)|\(.open_issues + .closed_issues)|\($repo)|\($project)"
+                else
+                  empty
+                end
+              ' 2>/dev/null || echo "")
+              
+              if [ -n "$milestone_data" ]; then
+                echo "$milestone_data" >> $temp_file
+                current_milestones=$(echo "$milestone_data" | wc -l)
+                milestone_count=$((milestone_count + current_milestones))
+                echo "  ✅ Found $current_milestones milestones"
+              else
+                echo "  ℹ️  No milestones found in $repo"
+              fi
+            else
+              echo "  ❌ Failed to fetch milestones for $repo"
             fi
           fi
         done
