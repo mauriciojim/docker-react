@@ -127,31 +127,51 @@ jobs:
             report += `## ℹ️ No Milestones Found\n\n`;
             report += `No milestones were found in the analyzed repositories.\n`;
           } else {
-            // Group milestones by name
-            const milestoneGroups = {};
+            // Group milestones by repository (project)
+            const projectGroups = {};
             allMilestones.forEach(milestone => {
-              if (!milestoneGroups[milestone.title]) {
-                milestoneGroups[milestone.title] = [];
+              if (!projectGroups[milestone.repository]) {
+                projectGroups[milestone.repository] = [];
               }
-              milestoneGroups[milestone.title].push(milestone);
+              projectGroups[milestone.repository].push(milestone);
             });
             
-            // Milestones by name
-            report += `## 🎯 Milestones Progress\n\n`;
-            Object.keys(milestoneGroups).sort().forEach(milestoneName => {
-              const milestones = milestoneGroups[milestoneName];
+            // Milestones by project
+            report += `## 🎯 Progress by Project\n\n`;
+            Object.keys(projectGroups).sort().forEach(projectName => {
+              const milestones = projectGroups[projectName];
               
-              // Calculate overall progress for this milestone across repos
+              // Calculate overall progress for this project
               const totalIssues = milestones.reduce((sum, m) => sum + m.totalIssues, 0);
               const completedIssues = milestones.reduce((sum, m) => sum + m.closedIssues, 0);
               const overallProgress = totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
               
-              report += `### ${milestoneName}\n\n`;
-              report += `**Overall Progress:** ${overallProgress}% (${completedIssues}/${totalIssues} issues)\n\n`;
+              // Count milestones by state
+              const openMilestones = milestones.filter(m => m.state === 'open').length;
+              const closedMilestones = milestones.filter(m => m.state === 'closed').length;
+              const overdueMilestones = milestones.filter(m => m.isOverdue).length;
               
-              // Table
-              report += `| Repository | State | Progress | Due Date | Status |\n`;
-              report += `|------------|-------|----------|----------|--------|\n`;
+              report += `### 📁 ${projectName}\n\n`;
+              report += `**Project Progress:** ${overallProgress}% (${completedIssues}/${totalIssues} issues)\n`;
+              report += `**Milestones:** ${milestones.length} total • ${openMilestones} open • ${closedMilestones} closed`;
+              if (overdueMilestones > 0) {
+                report += ` • ${overdueMilestones} overdue ⚠️`;
+              }
+              report += `\n\n`;
+              
+              // Table for this project's milestones
+              report += `| Milestone | State | Progress | Due Date | Status |\n`;
+              report += `|-----------|-------|----------|----------|--------|\n`;
+              
+              // Sort milestones by due date, then by name
+              milestones.sort((a, b) => {
+                if (a.dueDate && b.dueDate) {
+                  return new Date(a.dueDate) - new Date(b.dueDate);
+                }
+                if (a.dueDate && !b.dueDate) return -1;
+                if (!a.dueDate && b.dueDate) return 1;
+                return a.title.localeCompare(b.title);
+              });
               
               milestones.forEach(milestone => {
                 const statusEmoji = milestone.isOverdue ? '🔴' : 
@@ -159,7 +179,7 @@ jobs:
                 const dueDate = milestone.dueDate ? 
                   milestone.dueDate.split('T')[0] : 'No due date';
                 
-                report += `| [${milestone.repository}](${milestone.url}) | `;
+                report += `| [${milestone.title}](${milestone.url}) | `;
                 report += `${milestone.state} | `;
                 report += `${milestone.progress}% (${milestone.closedIssues}/${milestone.totalIssues}) | `;
                 report += `${dueDate} | `;
@@ -169,34 +189,55 @@ jobs:
               report += `\n`;
             });
             
-            // Repository details
-            report += `## 📚 Repository Details\n\n`;
-            const reposWithMilestones = [...new Set(allMilestones.map(m => m.repository))].sort();
+            // Summary by milestone name (cross-project view)
+            const milestoneGroups = {};
+            allMilestones.forEach(milestone => {
+              if (!milestoneGroups[milestone.title]) {
+                milestoneGroups[milestone.title] = [];
+              }
+              milestoneGroups[milestone.title].push(milestone);
+            });
             
-            reposWithMilestones.forEach(repoName => {
-              const repoMilestones = allMilestones.filter(m => m.repository === repoName);
+            // Only show cross-project view if there are shared milestone names
+            const sharedMilestones = Object.keys(milestoneGroups).filter(name => 
+              milestoneGroups[name].length > 1
+            );
+            
+            if (sharedMilestones.length > 0) {
+              report += `## 🔄 Cross-Project Milestones\n\n`;
+              report += `*Milestones that appear in multiple projects:*\n\n`;
               
-              report += `### ${repoName}\n\n`;
-              
-              if (repoMilestones.length > 0) {
-                report += `| Milestone | State | Progress | Due Date |\n`;
-                report += `|-----------|-------|----------|----------|\n`;
+              sharedMilestones.sort().forEach(milestoneName => {
+                const milestones = milestoneGroups[milestoneName];
                 
-                repoMilestones.forEach(milestone => {
+                // Calculate overall progress for this milestone across projects
+                const totalIssues = milestones.reduce((sum, m) => sum + m.totalIssues, 0);
+                const completedIssues = milestones.reduce((sum, m) => sum + m.closedIssues, 0);
+                const overallProgress = totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
+                
+                report += `### ${milestoneName}\n\n`;
+                report += `**Overall Progress:** ${overallProgress}% (${completedIssues}/${totalIssues} issues across ${milestones.length} projects)\n\n`;
+                
+                // Table
+                report += `| Project | State | Progress | Due Date | Status |\n`;
+                report += `|---------|-------|----------|----------|--------|\n`;
+                
+                milestones.forEach(milestone => {
+                  const statusEmoji = milestone.isOverdue ? '🔴' : 
+                                    milestone.state === 'open' ? '🟡' : '🟢';
                   const dueDate = milestone.dueDate ? 
                     milestone.dueDate.split('T')[0] : 'No due date';
                   
-                  report += `| [${milestone.title}](${milestone.url}) | `;
+                  report += `| [${milestone.repository}](${milestone.url}) | `;
                   report += `${milestone.state} | `;
-                  report += `${milestone.progress}% | `;
-                  report += `${dueDate} |\n`;
+                  report += `${milestone.progress}% (${milestone.closedIssues}/${milestone.totalIssues}) | `;
+                  report += `${dueDate} | `;
+                  report += `${statusEmoji} |\n`;
                 });
-              } else {
-                report += `*No milestones found*\n`;
-              }
-              
-              report += `\n`;
-            });
+                
+                report += `\n`;
+              });
+            }
           }
           
           // Create reports directory and save file
@@ -278,4 +319,3 @@ jobs:
             console.log(`⚠️ Could not create issue: ${error.message}`);
             console.log('This is normal if the repository doesn\'t have issues enabled or lacks permissions');
           }
-
