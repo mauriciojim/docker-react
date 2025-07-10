@@ -2,7 +2,7 @@
 
 **Key Metrics:**
 - Repositories analyzed: 11
-- Total milestones: 4
+- Total milestones: 6
 - Completed: 0
 - Overdue: 0 ✅
 

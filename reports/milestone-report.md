@@ -1,12 +1,12 @@
 # 📊 Milestone Progress Report
 
 **Organization/User:** mauriciojim
-**Generated:** 2025-07-10 01:06:52 UTC
+**Generated:** 2025-07-10 01:11:01 UTC
 
 ## 📈 Summary
 
 - **Total Repositories:** 11
-- **Total Milestones:** 4
+- **Total Milestones:** 6
 - **Completed Milestones:** 0
 - **Overdue Milestones:** 0
 
@@ -24,11 +24,13 @@
 
 ### Beta Julio
 
-**Overall Progress:** 100% (2/2 issues)
+**Overall Progress:** 50% (2/4 issues)
 
 | Repository | State | Progress | Due Date | Status |
 |------------|-------|----------|----------|--------|
 | [docker-react](https://github.com/mauriciojim/docker-react/milestone/1) | open | 100% (2/2) | 2025-07-31 | 🟡 |
+| [multiplicar-node](https://github.com/mauriciojim/multiplicar-node/milestone/1) | open | 0% (0/1) | 2025-07-31 | 🟡 |
+| [rest-proy](https://github.com/mauriciojim/rest-proy/milestone/1) | open | 0% (0/1) | 2025-07-31 | 🟡 |
 
 ## 📚 Repository Details
 
@@ -44,6 +46,18 @@
 | Milestone | State | Progress | Due Date |
 |-----------|-------|----------|----------|
 | [Beta Agosto](https://github.com/mauriciojim/maven-pipeline/milestone/1) | open | 100% | 2025-08-31 |
+
+### multiplicar-node
+
+| Milestone | State | Progress | Due Date |
+|-----------|-------|----------|----------|
+| [Beta Julio](https://github.com/mauriciojim/multiplicar-node/milestone/1) | open | 0% | 2025-07-31 |
+
+### rest-proy
+
+| Milestone | State | Progress | Due Date |
+|-----------|-------|----------|----------|
+| [Beta Julio](https://github.com/mauriciojim/rest-proy/milestone/1) | open | 0% | 2025-07-31 |
 
 ### simple-java-maven-app
 
