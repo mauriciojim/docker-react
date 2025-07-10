@@ -56,7 +56,7 @@ jobs:
           
           console.log(`📊 Found ${repositories.length} repositories`);
           
-          // Collect milestone data with issues
+          // Collect milestone data
           let allMilestones = [];
           let totalMilestones = 0;
           let completedMilestones = 0;
@@ -91,35 +91,6 @@ jobs:
                   overdueMilestones++;
                 }
                 
-                // Get issues for this milestone
-                console.log(`  Getting issues for milestone: ${milestone.title}`);
-                let milestoneIssues = [];
-                try {
-                  const issues = await github.rest.issues.listForRepo({
-                    owner: repo.owner.login,
-                    repo: repo.name,
-                    milestone: milestone.number,
-                    state: 'all',
-                    per_page: 100
-                  });
-                  
-                  milestoneIssues = issues.data.map(issue => ({
-                    number: issue.number,
-                    title: issue.title,
-                    state: issue.state,
-                    url: issue.html_url,
-                    assignee: issue.assignee ? issue.assignee.login : null,
-                    labels: issue.labels.map(label => label.name),
-                    created_at: issue.created_at,
-                    updated_at: issue.updated_at,
-                    closed_at: issue.closed_at
-                  }));
-                  
-                  console.log(`    Found ${milestoneIssues.length} issues`);
-                } catch (issueError) {
-                  console.log(`    Error getting issues: ${issueError.message}`);
-                }
-                
                 allMilestones.push({
                   repository: repo.name,
                   title: milestone.title,
@@ -131,8 +102,7 @@ jobs:
                   dueDate: milestone.due_on,
                   isOverdue: isOverdue,
                   url: milestone.html_url,
-                  description: milestone.description,
-                  issues: milestoneIssues
+                  description: milestone.description
                 });
               }
             } catch (error) {
@@ -157,177 +127,76 @@ jobs:
             report += `## ℹ️ No Milestones Found\n\n`;
             report += `No milestones were found in the analyzed repositories.\n`;
           } else {
-            // Function to determine project name from repository
-            function getProjectName(repoName) {
-              console.log(`Processing repo: ${repoName}`);
-              
-              // OPTION 1: Single Project Mode (Default)
-              // Uncomment this line to group ALL repositories into one project:
-              return 'Main Project';
-              
-              // OPTION 2: Custom Project Mapping
-              // Add your specific repository mappings here:
-              const projectMappings = {
-                // Example mappings - customize these for your repos:
-                // 'docker-react': 'Frontend',
-                // 'docker-api': 'Backend',
-                // 'maven-pipeline': 'CI/CD',
-                // 'simple-java-maven-app': 'Backend'
-              };
-              
-              if (projectMappings[repoName]) {
-                console.log(`  -> Mapped to ${projectMappings[repoName]} project`);
-                return projectMappings[repoName];
-              }
-              
-              // OPTION 3: Auto-detection (Current Logic)
-              // Group by common prefixes
-              if (repoName.startsWith('docker-')) {
-                console.log(`  -> Grouped as Docker project`);
-                return 'docker';
-              }
-              if (repoName.startsWith('maven-') || repoName.includes('maven')) {
-                console.log(`  -> Grouped as Maven project`);
-                return 'maven';
-              }
-              if (repoName.startsWith('microservice-') || repoName.startsWith('ms-')) {
-                console.log(`  -> Grouped as Microservice project`);
-                return 'microservice';
-              }
-              if (repoName.startsWith('api-') || repoName.endsWith('-api')) {
-                console.log(`  -> Grouped as API project`);
-                return 'api';
-              }
-              if (repoName.includes('frontend') || repoName.includes('react') || repoName.includes('angular') || repoName.includes('vue')) {
-                console.log(`  -> Grouped as Frontend project`);
-                return 'frontend';
-              }
-              if (repoName.includes('backend') || repoName.includes('server')) {
-                console.log(`  -> Grouped as Backend project`);
-                return 'backend';
-              }
-              if (repoName.includes('java') || repoName.includes('spring')) {
-                console.log(`  -> Grouped as Java project`);
-                return 'java';
-              }
-              
-              // OPTION 4: Single Project Fallback
-              // If no patterns match, group everything as one project
-              console.log(`  -> Using single project mode: Main Project`);
-              return 'Main Project';
-            }
-            
-            // Group milestones by project
-            const projectGroups = {};
+            // Group milestones by name
+            const milestoneGroups = {};
             allMilestones.forEach(milestone => {
-              const projectName = getProjectName(milestone.repository);
-              if (!projectGroups[projectName]) {
-                projectGroups[projectName] = {
-                  repositories: new Set(),
-                  milestones: []
-                };
+              if (!milestoneGroups[milestone.title]) {
+                milestoneGroups[milestone.title] = [];
               }
-              projectGroups[projectName].repositories.add(milestone.repository);
-              projectGroups[projectName].milestones.push(milestone);
+              milestoneGroups[milestone.title].push(milestone);
             });
             
-            // Debug: Show project groupings
-            console.log(`\n📊 Project Groupings:`);
-            Object.keys(projectGroups).forEach(projectName => {
-              const repos = Array.from(projectGroups[projectName].repositories);
-              console.log(`  ${projectName}: ${repos.join(', ')} (${projectGroups[projectName].milestones.length} milestones)`);
-            });
-            
-            // Milestones by project
-            report += `## 🎯 Project Progress Report\n\n`;
-            Object.keys(projectGroups).sort().forEach(projectName => {
-              const projectData = projectGroups[projectName];
-              const milestones = projectData.milestones;
-              const repositories = Array.from(projectData.repositories);
+            // Milestones by name
+            report += `## 🎯 Milestones Progress\n\n`;
+            Object.keys(milestoneGroups).sort().forEach(milestoneName => {
+              const milestones = milestoneGroups[milestoneName];
               
-              // Calculate overall progress for this project
+              // Calculate overall progress for this milestone across repos
               const totalIssues = milestones.reduce((sum, m) => sum + m.totalIssues, 0);
               const completedIssues = milestones.reduce((sum, m) => sum + m.closedIssues, 0);
               const overallProgress = totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
               
-              // Count milestones by state
-              const openMilestones = milestones.filter(m => m.state === 'open').length;
-              const closedMilestones = milestones.filter(m => m.state === 'closed').length;
-              const overdueMilestones = milestones.filter(m => m.isOverdue).length;
+              report += `### ${milestoneName}\n\n`;
+              report += `**Overall Progress:** ${overallProgress}% (${completedIssues}/${totalIssues} issues)\n\n`;
               
-              report += `### 🚀 ${projectName.charAt(0).toUpperCase() + projectName.slice(1)}\n\n`;
-              report += `**Overall Progress:** ${overallProgress}% (${completedIssues}/${totalIssues} tasks completed)\n`;
-              report += `**Repositories:** ${repositories.join(', ')}\n`;
-              report += `**Milestones:** ${milestones.length} total • ${openMilestones} open • ${closedMilestones} closed`;
-              if (overdueMilestones > 0) {
-                report += ` • ${overdueMilestones} overdue ⚠️`;
-              }
-              report += `\n\n`;
+              // Table
+              report += `| Repository | State | Progress | Due Date | Status |\n`;
+              report += `|------------|-------|----------|----------|--------|\n`;
               
-              // Sort milestones by due date, then by milestone name
-              milestones.sort((a, b) => {
-                if (a.dueDate && b.dueDate) {
-                  const dateCompare = new Date(a.dueDate) - new Date(b.dueDate);
-                  if (dateCompare !== 0) return dateCompare;
-                }
-                if (a.dueDate && !b.dueDate) return -1;
-                if (!a.dueDate && b.dueDate) return 1;
-                return a.title.localeCompare(b.title);
-              });
-              
-              // Display each milestone and its tasks
               milestones.forEach(milestone => {
                 const statusEmoji = milestone.isOverdue ? '🔴' : 
                                   milestone.state === 'open' ? '🟡' : '🟢';
                 const dueDate = milestone.dueDate ? 
                   milestone.dueDate.split('T')[0] : 'No due date';
                 
-                report += `#### ${statusEmoji} [${milestone.title}](${milestone.url})\n`;
-                report += `**Repository:** ${milestone.repository} | `;
-                report += `**Progress:** ${milestone.progress}% (${milestone.closedIssues}/${milestone.totalIssues}) | `;
-                report += `**Due:** ${dueDate} | `;
-                report += `**Status:** ${milestone.state}\n\n`;
-                
-                // Show milestone description if available
-                if (milestone.description && milestone.description.trim()) {
-                  report += `*${milestone.description.trim()}*\n\n`;
-                }
-                
-                // Tasks/Issues table
-                if (milestone.issues && milestone.issues.length > 0) {
-                  report += `**Tasks:**\n\n`;
-                  report += `| # | Task | Status | Assignee | Labels |\n`;
-                  report += `|---|------|--------|----------|--------|\n`;
-                  
-                  // Sort issues: open first, then by number
-                  milestone.issues.sort((a, b) => {
-                    if (a.state !== b.state) {
-                      return a.state === 'open' ? -1 : 1;
-                    }
-                    return a.number - b.number;
-                  });
-                  
-                  milestone.issues.forEach(issue => {
-                    const taskEmoji = issue.state === 'open' ? '⏳' : '✅';
-                    const assignee = issue.assignee || 'Unassigned';
-                    const labels = issue.labels.length > 0 ? issue.labels.join(', ') : '-';
-                    
-                    report += `| [#${issue.number}](${issue.url}) | `;
-                    report += `${taskEmoji} ${issue.title} | `;
-                    report += `${issue.state} | `;
-                    report += `${assignee} | `;
-                    report += `${labels} |\n`;
-                  });
-                  
-                  report += `\n`;
-                } else {
-                  report += `*No tasks found for this milestone.*\n\n`;
-                }
-                
-                report += `---\n\n`;
+                report += `| [${milestone.repository}](${milestone.url}) | `;
+                report += `${milestone.state} | `;
+                report += `${milestone.progress}% (${milestone.closedIssues}/${milestone.totalIssues}) | `;
+                report += `${dueDate} | `;
+                report += `${statusEmoji} |\n`;
               });
+              
+              report += `\n`;
             });
             
+            // Repository details
+            report += `## 📚 Repository Details\n\n`;
+            const reposWithMilestones = [...new Set(allMilestones.map(m => m.repository))].sort();
+            
+            reposWithMilestones.forEach(repoName => {
+              const repoMilestones = allMilestones.filter(m => m.repository === repoName);
+              
+              report += `### ${repoName}\n\n`;
+              
+              if (repoMilestones.length > 0) {
+                report += `| Milestone | State | Progress | Due Date |\n`;
+                report += `|-----------|-------|----------|----------|\n`;
+                
+                repoMilestones.forEach(milestone => {
+                  const dueDate = milestone.dueDate ? 
+                    milestone.dueDate.split('T')[0] : 'No due date';
+                  
+                  report += `| [${milestone.title}](${milestone.url}) | `;
+                  report += `${milestone.state} | `;
+                  report += `${milestone.progress}% | `;
+                  report += `${dueDate} |\n`;
+                });
+              } else {
+                report += `*No milestones found*\n`;
+              }
+              
+              report += `\n`;
+            });
           }
           
           // Create reports directory and save file
@@ -339,7 +208,7 @@ jobs:
           fs.writeFileSync(`${reportsDir}/milestone-report.md`, report);
           
           // Create summary for issue
-          let summary = `## 📊 Project Milestone Summary\n\n`;
+          let summary = `## 📊 Weekly Milestone Summary\n\n`;
           summary += `**Key Metrics:**\n`;
           summary += `- Repositories analyzed: ${repositories.length}\n`;
           summary += `- Total milestones: ${totalMilestones}\n`;
@@ -352,7 +221,7 @@ jobs:
           }
           
           summary += `📋 [View Full Report](./reports/milestone-report.md)\n`;
-          summary += `🔄 Report generated on ${now.toISOString().split('T')[0]}`;
+          summary += `🔄 Report generated automatically on ${now.toISOString().split('T')[0]}`;
           
           fs.writeFileSync(`${reportsDir}/milestone-summary.md`, summary);
           
