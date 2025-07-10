@@ -220,10 +220,38 @@ jobs:
             summary += `There are ${overdueMilestones} overdue milestone(s) that need attention.\n\n`;
           }
           
-          summary += `📋 [View Full Report](./reports/milestone-report.md)\n`;
-          summary += `🔄 Report generated automatically on ${now.toISOString().split('T')[0]}`;
+          summary += `📋 Download this report as an artifact from the GitHub Actions workflow run\n`;
+          summary += `🔄 Report generated automatically on ${now.toISOString().split('T')[0]}\n\n`;
+          summary += `### 📥 How to Download\n`;
+          summary += `1. Go to the Actions tab in this repository\n`;
+          summary += `2. Click on the workflow run that generated this report\n`;
+          summary += `3. Scroll down to the "Artifacts" section\n`;
+          summary += `4. Download the milestone report zip file\n`;
+          summary += `5. Extract and open the markdown files with your preferred viewer\n`;
           
           fs.writeFileSync(`${reportsDir}/milestone-summary.md`, summary);
+          
+          // Create a README for the artifact
+          let artifactReadme = `# 📊 Milestone Report Artifact\n\n`;
+          artifactReadme += `This artifact contains the milestone progress report for **${targetOrg}**.\n\n`;
+          artifactReadme += `## 📁 Files Included\n\n`;
+          artifactReadme += `- \`milestone-report.md\` - Complete detailed milestone report\n`;
+          artifactReadme += `- \`milestone-summary.md\` - Executive summary with key metrics\n`;
+          artifactReadme += `- \`README.md\` - This file\n\n`;
+          artifactReadme += `## 📖 How to View\n\n`;
+          artifactReadme += `1. **Markdown Viewers:** Use any markdown viewer (VS Code, Typora, etc.)\n`;
+          artifactReadme += `2. **GitHub:** Upload files to a GitHub repository for rendered view\n`;
+          artifactReadme += `3. **Online Viewers:** Use online markdown viewers like Dillinger.io\n`;
+          artifactReadme += `4. **Convert to PDF:** Use pandoc or online converters\n\n`;
+          artifactReadme += `## 📊 Report Details\n\n`;
+          artifactReadme += `- **Generated:** ${now.toISOString().split('T')[0]} ${now.toTimeString().split(' ')[0]} UTC\n`;
+          artifactReadme += `- **Organization/User:** ${targetOrg}\n`;
+          artifactReadme += `- **Repositories Analyzed:** ${repositories.length}\n`;
+          artifactReadme += `- **Total Milestones:** ${totalMilestones}\n`;
+          artifactReadme += `- **Completed:** ${completedMilestones}\n`;
+          artifactReadme += `- **Overdue:** ${overdueMilestones}\n`;
+          
+          fs.writeFileSync(`${reportsDir}/README.md`, artifactReadme);
           
           console.log(`✅ Report generated successfully!`);
           console.log(`📊 Analyzed ${repositories.length} repositories`);
@@ -250,31 +278,27 @@ jobs:
           git push
         fi
         
-    - name: Create Summary Issue
-      uses: actions/github-script@v7
-      continue-on-error: true
+    - name: Upload Report Artifacts
+      uses: actions/upload-artifact@v4
       with:
-        script: |
-          try {
-            const fs = require('fs');
-            const summaryPath = 'reports/milestone-summary.md';
-            
-            if (fs.existsSync(summaryPath)) {
-              const summary = fs.readFileSync(summaryPath, 'utf8');
-              
-              const issue = await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `📊 Milestone Report - ${new Date().toISOString().split('T')[0]}`,
-                body: summary,
-                labels: ['report', 'milestone', 'automated']
-              });
-              
-              console.log(`✅ Issue created successfully: ${issue.data.html_url}`);
-            } else {
-              console.log('⚠️ Summary file not found, skipping issue creation');
-            }
-          } catch (error) {
-            console.log(`⚠️ Could not create issue: ${error.message}`);
-            console.log('This is normal if the repository doesn\'t have issues enabled or lacks permissions');
-          }
+        name: milestone-report-${{ github.event.inputs.organization || 'mauriciojim' }}-${{ github.run_number }}
+        path: reports/
+        retention-days: 30
+        
+    - name: Display Report Summary
+      run: |
+        echo "📊 Milestone Report Generated Successfully!"
+        echo "======================================"
+        if [ -f "reports/milestone-summary.md" ]; then
+          echo ""
+          echo "Summary:"
+          cat reports/milestone-summary.md
+          echo ""
+          echo "======================================"
+          echo "📥 Download the full report from the Artifacts section in this workflow run"
+          echo "📋 Files included in the artifact:"
+          echo "   - milestone-report.md (Full detailed report)"
+          echo "   - milestone-summary.md (Executive summary)"
+        else
+          echo "⚠️ Report files not found"
+        fi
