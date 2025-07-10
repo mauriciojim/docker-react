@@ -131,7 +131,27 @@ jobs:
             function getProjectName(repoName) {
               console.log(`Processing repo: ${repoName}`);
               
-              // Pattern 1: Group by common prefixes
+              // OPTION 1: Single Project Mode (Default)
+              // Uncomment this line to group ALL repositories into one project:
+              return 'Main Project';
+              
+              // OPTION 2: Custom Project Mapping
+              // Add your specific repository mappings here:
+              const projectMappings = {
+                // Example mappings - customize these for your repos:
+                // 'docker-react': 'Frontend',
+                // 'docker-api': 'Backend',
+                // 'maven-pipeline': 'CI/CD',
+                // 'simple-java-maven-app': 'Backend'
+              };
+              
+              if (projectMappings[repoName]) {
+                console.log(`  -> Mapped to ${projectMappings[repoName]} project`);
+                return projectMappings[repoName];
+              }
+              
+              // OPTION 3: Auto-detection (Current Logic)
+              // Group by common prefixes
               if (repoName.startsWith('docker-')) {
                 console.log(`  -> Grouped as Docker project`);
                 return 'docker';
@@ -161,30 +181,10 @@ jobs:
                 return 'java';
               }
               
-              // Pattern 2: Remove common suffixes to group similar repos
-              let projectName = repoName
-                .replace(/-api$|-backend$|-frontend$|-web$|-app$|-service$|-client$|-server$|-admin$|-dashboard$/, '');
-              
-              // If we removed a suffix and it's different, use that as project name
-              if (projectName !== repoName && projectName.length > 0) {
-                console.log(`  -> Grouped as ${projectName} project (by suffix removal)`);
-                return projectName;
-              }
-              
-              // Pattern 3: Group by common words
-              const words = repoName.split('-');
-              if (words.length > 1) {
-                // Use first meaningful word as project name
-                const firstWord = words[0];
-                if (firstWord.length > 2) {
-                  console.log(`  -> Grouped as ${firstWord} project (by first word)`);
-                  return firstWord;
-                }
-              }
-              
-              // Default: use repository name as its own project
-              console.log(`  -> Using repo name as project: ${repoName}`);
-              return repoName;
+              // OPTION 4: Single Project Fallback
+              // If no patterns match, group everything as one project
+              console.log(`  -> Using single project mode: Main Project`);
+              return 'Main Project';
             }
             
             // Group milestones by project
