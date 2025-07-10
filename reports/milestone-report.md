@@ -1,7 +1,7 @@
 # 📊 Milestone Progress Report
 
 **Organization/User:** mauriciojim
-**Generated:** 2025-07-10 01:11:01 UTC
+**Generated:** 2025-07-10 01:16:07 UTC
 
 ## 📈 Summary
 
@@ -24,11 +24,11 @@
 
 ### Beta Julio
 
-**Overall Progress:** 50% (2/4 issues)
+**Overall Progress:** 40% (2/5 issues)
 
 | Repository | State | Progress | Due Date | Status |
 |------------|-------|----------|----------|--------|
-| [docker-react](https://github.com/mauriciojim/docker-react/milestone/1) | open | 100% (2/2) | 2025-07-31 | 🟡 |
+| [docker-react](https://github.com/mauriciojim/docker-react/milestone/1) | open | 67% (2/3) | 2025-07-31 | 🟡 |
 | [multiplicar-node](https://github.com/mauriciojim/multiplicar-node/milestone/1) | open | 0% (0/1) | 2025-07-31 | 🟡 |
 | [rest-proy](https://github.com/mauriciojim/rest-proy/milestone/1) | open | 0% (0/1) | 2025-07-31 | 🟡 |
 
@@ -39,7 +39,7 @@
 | Milestone | State | Progress | Due Date |
 |-----------|-------|----------|----------|
 | [Beta Agosto](https://github.com/mauriciojim/docker-react/milestone/2) | open | 100% | No due date |
-| [Beta Julio](https://github.com/mauriciojim/docker-react/milestone/1) | open | 100% | 2025-07-31 |
+| [Beta Julio](https://github.com/mauriciojim/docker-react/milestone/1) | open | 67% | 2025-07-31 |
 
 ### maven-pipeline
 
