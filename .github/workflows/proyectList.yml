@@ -1,0 +1,225 @@
+name: Project List Generator
+
+on:
+  workflow_dispatch:
+    inputs:
+      organization:
+        description: 'Organization/User to analyze'
+        required: true
+        default: 'mauriciojim'
+
+jobs:
+  project-list:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Generate Project List
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const targetOrg = '${{ github.event.inputs.organization || 'mauriciojim' }}';
+          
+          console.log(`🚀 Generating project list for ${targetOrg}`);
+          
+          // Get all repositories for the user/organization
+          let repositories = [];
+          try {
+            const user = await github.rest.users.getByUsername({ username: targetOrg });
+            const repos = await github.rest.repos.listForUser({
+              username: targetOrg,
+              type: 'public',
+              per_page: 100
+            });
+            repositories = repos.data;
+          } catch (error) {
+            console.log(`Could not fetch user repos, trying organization...`);
+            try {
+              const repos = await github.rest.repos.listForOrg({
+                org: targetOrg,
+                type: 'public',
+                per_page: 100
+              });
+              repositories = repos.data;
+            } catch (orgError) {
+              console.log(`Error fetching repositories: ${orgError.message}`);
+              return;
+            }
+          }
+          
+          console.log(`📊 Found ${repositories.length} repositories`);
+          
+          // Function to determine project name from repository
+          function getProjectName(repoName) {
+            console.log(`Processing repo: ${repoName}`);
+            
+            // Auto-detection by patterns
+            if (repoName.startsWith('docker-')) {
+              console.log(`  -> Grouped as Docker project`);
+              return 'Docker';
+            }
+            if (repoName.startsWith('maven-') || repoName.includes('maven')) {
+              console.log(`  -> Grouped as Maven project`);
+              return 'Maven';
+            }
+            if (repoName.startsWith('microservice-') || repoName.startsWith('ms-')) {
+              console.log(`  -> Grouped as Microservices project`);
+              return 'Microservices';
+            }
+            if (repoName.startsWith('api-') || repoName.endsWith('-api')) {
+              console.log(`  -> Grouped as API project`);
+              return 'API';
+            }
+            if (repoName.includes('frontend') || repoName.includes('react') || repoName.includes('angular') || repoName.includes('vue')) {
+              console.log(`  -> Grouped as Frontend project`);
+              return 'Frontend';
+            }
+            if (repoName.includes('backend') || repoName.includes('server')) {
+              console.log(`  -> Grouped as Backend project`);
+              return 'Backend';
+            }
+            if (repoName.includes('java') || repoName.includes('spring')) {
+              console.log(`  -> Grouped as Java project`);
+              return 'Java';
+            }
+            if (repoName.includes('web')) {
+              console.log(`  -> Grouped as Web project`);
+              return 'Web';
+            }
+            
+            // Default: each repository is its own project
+            console.log(`  -> Individual project: ${repoName}`);
+            return repoName;
+          }
+          
+          // Detect all projects from repositories
+          const projectGroups = {};
+          repositories.forEach(repo => {
+            const projectName = getProjectName(repo.name);
+            if (!projectGroups[projectName]) {
+              projectGroups[projectName] = [];
+            }
+            projectGroups[projectName].push(repo.name);
+          });
+          
+          // Debug: Show project groupings
+          console.log(`\n📊 Project Groupings:`);
+          Object.keys(projectGroups).forEach(projectName => {
+            console.log(`  ${projectName}: ${projectGroups[projectName].join(', ')}`);
+          });
+          
+          // Generate report
+          const now = new Date();
+          let report = `# 📋 Projects List\n\n`;
+          report += `**Organization/User:** ${targetOrg}\n`;
+          report += `**Generated:** ${now.toISOString().split('T')[0]} ${now.toTimeString().split(' ')[0]} UTC\n\n`;
+          
+          // Summary
+          report += `## 📊 Summary\n\n`;
+          report += `- **Total Repositories:** ${repositories.length}\n`;
+          report += `- **Detected Projects:** ${Object.keys(projectGroups).length}\n\n`;
+          
+          // Projects list
+          report += `## 🚀 Detected Projects\n\n`;
+          
+          if (Object.keys(projectGroups).length === 0) {
+            report += `No projects detected.\n`;
+          } else {
+            const sortedProjects = Object.keys(projectGroups).sort();
+            
+            sortedProjects.forEach((projectName, index) => {
+              report += `${index + 1}. **${projectName}**\n`;
+            });
+            
+            report += `\n`;
+            
+            // Show which repositories belong to each project
+            report += `## 📁 Project Details\n\n`;
+            
+            sortedProjects.forEach(projectName => {
+              const repos = projectGroups[projectName];
+              
+              report += `### ${projectName}\n`;
+              report += `- **Repositories:** ${repos.join(', ')}\n`;
+              report += `- **Repository Count:** ${repos.length}\n\n`;
+            });
+          }
+          
+          // Create reports directory and save file
+          const reportsDir = 'reports';
+          if (!fs.existsSync(reportsDir)) {
+            fs.mkdirSync(reportsDir, { recursive: true });
+          }
+          
+          fs.writeFileSync(`${reportsDir}/project-list.md`, report);
+          
+          // Create summary for issue
+          let summary = `## 📋 Project List Summary\n\n`;
+          summary += `**Key Metrics:**\n`;
+          summary += `- Repositories analyzed: ${repositories.length}\n`;
+          summary += `- Projects detected: ${Object.keys(projectGroups).length}\n\n`;
+          
+          summary += `**Detected Projects:**\n`;
+          Object.keys(projectGroups).sort().forEach((projectName, index) => {
+            summary += `${index + 1}. ${projectName} (${projectGroups[projectName].length} repos)\n`;
+          });
+          
+          summary += `\n📋 [View Full Report](./reports/project-list.md)\n`;
+          summary += `🔄 Report generated on ${now.toISOString().split('T')[0]}`;
+          
+          fs.writeFileSync(`${reportsDir}/project-summary.md`, summary);
+          
+          console.log(`✅ Project list generated successfully!`);
+          console.log(`📊 Analyzed ${repositories.length} repositories`);
+          console.log(`🎯 Detected ${Object.keys(projectGroups).length} projects`);
+          
+          // Store summary for issue creation
+          core.setOutput('summary', summary);
+          core.setOutput('project_count', Object.keys(projectGroups).length);
+          core.setOutput('repo_count', repositories.length);
+          
+    - name: Commit and push report
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add reports/
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "📋 Update project list - $(date '+%Y-%m-%d %H:%M')"
+          git push
+        fi
+        
+    - name: Create Summary Issue
+      uses: actions/github-script@v7
+      continue-on-error: true
+      with:
+        script: |
+          try {
+            const fs = require('fs');
+            const summaryPath = 'reports/project-summary.md';
+            
+            if (fs.existsSync(summaryPath)) {
+              const summary = fs.readFileSync(summaryPath, 'utf8');
+              
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `📋 Project List - ${new Date().toISOString().split('T')[0]}`,
+                body: summary,
+                labels: ['report', 'project-list', 'automated']
+              });
+              
+              console.log(`✅ Issue created successfully: ${issue.data.html_url}`);
+            } else {
+              console.log('⚠️ Summary file not found, skipping issue creation');
+            }
+          } catch (error) {
+            console.log(`⚠️ Could not create issue: ${error.message}`);
+            console.log('This is normal if the repository doesn\'t have issues enabled or lacks permissions');
+          }
