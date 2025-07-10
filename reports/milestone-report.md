@@ -1,7 +1,7 @@
 # 📊 Milestone Progress Report
 
 **Organization/User:** mauriciojim
-**Generated:** 2025-07-10 00:32:34 UTC
+**Generated:** 2025-07-10 00:39:14 UTC
 
 ## 📈 Summary
 
@@ -10,32 +10,66 @@
 - **Completed Milestones:** 0
 - **Overdue Milestones:** 0
 
-## 🎯 Progress by Project
+## 🎯 Project Progress Report
 
-### 🚀 Main Project Project
+### 🚀 Main Project
 
-**Project Progress:** 100% (7/7 issues)
+**Overall Progress:** 100% (7/7 tasks completed)
 **Repositories:** docker-react, maven-pipeline, simple-java-maven-app
 **Milestones:** 4 total • 4 open • 0 closed
 
-| Milestone | Repository | State | Progress | Due Date | Status |
-|-----------|------------|-------|----------|----------|--------|
-| [Beta Julio](https://github.com/mauriciojim/docker-react/milestone/1) | docker-react | open | 100% (2/2) | 2025-07-31 | 🟡 |
-| [Beta Agosto](https://github.com/mauriciojim/maven-pipeline/milestone/1) | maven-pipeline | open | 100% (2/2) | 2025-08-31 | 🟡 |
-| [Beta Agosto](https://github.com/mauriciojim/docker-react/milestone/2) | docker-react | open | 100% (2/2) | No due date | 🟡 |
-| [Beta Agosto](https://github.com/mauriciojim/simple-java-maven-app/milestone/1) | simple-java-maven-app | open | 100% (1/1) | No due date | 🟡 |
+#### 🟡 [Beta Julio](https://github.com/mauriciojim/docker-react/milestone/1)
+**Repository:** docker-react | **Progress:** 100% (2/2) | **Due:** 2025-07-31 | **Status:** open
 
-## 🔄 Cross-Project Milestones
+*Sale en julio*
 
-*Milestones that appear across multiple projects:*
+**Tasks:**
 
-### Beta Agosto
+| # | Task | Status | Assignee | Labels |
+|---|------|--------|----------|--------|
+| [#3](https://github.com/mauriciojim/docker-react/issues/3) | ✅ Req 1 | closed | Unassigned | documentation |
+| [#4](https://github.com/mauriciojim/docker-react/issues/4) | ✅ Tarea 1 | closed | mauriciojim | bug |
 
-**Overall Progress:** 100% (5/5 issues across 1 projects)
+---
 
-| Project | Repository | State | Progress | Due Date | Status |
-|---------|------------|-------|----------|----------|--------|
-| Main Project | [docker-react](https://github.com/mauriciojim/docker-react/milestone/2) | open | 100% (2/2) | No due date | 🟡 |
-| Main Project | [maven-pipeline](https://github.com/mauriciojim/maven-pipeline/milestone/1) | open | 100% (2/2) | 2025-08-31 | 🟡 |
-| Main Project | [simple-java-maven-app](https://github.com/mauriciojim/simple-java-maven-app/milestone/1) | open | 100% (1/1) | No due date | 🟡 |
+#### 🟡 [Beta Agosto](https://github.com/mauriciojim/maven-pipeline/milestone/1)
+**Repository:** maven-pipeline | **Progress:** 100% (2/2) | **Due:** 2025-08-31 | **Status:** open
+
+*Beta Agosto*
+
+**Tasks:**
+
+| # | Task | Status | Assignee | Labels |
+|---|------|--------|----------|--------|
+| [#2](https://github.com/mauriciojim/maven-pipeline/issues/2) | ✅ REq Otro 1 | closed | mauriciojim | documentation |
+| [#3](https://github.com/mauriciojim/maven-pipeline/issues/3) | ✅ tare otro 1 | closed | mauriciojim | - |
+
+---
+
+#### 🟡 [Beta Agosto](https://github.com/mauriciojim/docker-react/milestone/2)
+**Repository:** docker-react | **Progress:** 100% (2/2) | **Due:** No due date | **Status:** open
+
+*Sale en agosto*
+
+**Tasks:**
+
+| # | Task | Status | Assignee | Labels |
+|---|------|--------|----------|--------|
+| [#5](https://github.com/mauriciojim/docker-react/issues/5) | ✅ Req Ago 1 | closed | mauriciojim | documentation |
+| [#6](https://github.com/mauriciojim/docker-react/issues/6) | ✅ Tarea Ago 1 | closed | mauriciojim | - |
+
+---
+
+#### 🟡 [Beta Agosto](https://github.com/mauriciojim/simple-java-maven-app/milestone/1)
+**Repository:** simple-java-maven-app | **Progress:** 100% (1/1) | **Due:** No due date | **Status:** open
+
+*Entrega agosto*
+
+**Tasks:**
+
+| # | Task | Status | Assignee | Labels |
+|---|------|--------|----------|--------|
+| [#2](https://github.com/mauriciojim/simple-java-maven-app/issues/2) | ✅ nuevo issue para beta agosto | closed | mauriciojim | bug |
+
+---
 

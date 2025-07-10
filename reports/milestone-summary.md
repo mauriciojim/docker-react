@@ -1,4 +1,4 @@
-## 📊 Weekly Milestone Summary
+## 📊 Project Milestone Summary
 
 **Key Metrics:**
 - Repositories analyzed: 11
@@ -7,4 +7,4 @@
 - Overdue: 0 ✅
 
 📋 [View Full Report](./reports/milestone-report.md)
-🔄 Report generated automatically on 2025-07-10
+🔄 Report generated on 2025-07-10
